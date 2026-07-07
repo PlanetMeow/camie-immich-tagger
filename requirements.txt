@@ -1,0 +1,6 @@
+# GPU inference (CUDA). For CPU-only, use onnxruntime instead of onnxruntime-gpu.
+onnxruntime-gpu>=1.20
+numpy
+Pillow
+requests
+huggingface-hub

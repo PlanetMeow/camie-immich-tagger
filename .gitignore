@@ -1,0 +1,29 @@
+# secrets / local config
+config.py
+.env
+*.key
+
+# model weights (large; downloaded separately)
+models/
+*.onnx
+
+# runtime state / logs
+camie_done.txt
+camie_errors.txt
+no_character_images.txt
+tier0_progress.json
+tier0_daily.log
+daily.log
+tags_to_delete.txt
+tags_keep.txt
+orphan_sidecars.txt
+
+# python
+__pycache__/
+*.pyc
+venv/
+venv_camie/
+.venv/
+
+# exiftool binary
+exiftool.exe
