@@ -53,7 +53,7 @@ flowchart TD
 - NVIDIA GPU + CUDA for `onnxruntime-gpu` (CPU works, slower)
 - [ExifTool](https://exiftool.org/) (`exiftool.exe`)
 - A running [immich](https://immich.app/) instance with **External Libraries** (mounted read-write if you want dedup/manual tagging)
-- camie-tagger-v2 model (`.onnx` + `-metadata.json`) — see [camie-tagger on Hugging Face](https://huggingface.co/) *(fill in exact repo)*
+- camie-tagger-v2 model (`.onnx` + `-metadata.json`) — see [camie-tagger on Hugging Face](https://huggingface.co/Camais03/camie-tagger-v2)
 
 ## Installation
 
