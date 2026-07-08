@@ -34,6 +34,20 @@ flowchart TD
 
 ---
 
+## Screenshots
+
+**Browse by hierarchical tag tree** — English categories (`character/`, `copyright/`, `artist/`, `general/`) plus a `zh/` branch for Chinese:
+
+![Tag tree](docs/screenshots/tag-search.png)
+
+**Every image carries its full tag set** — searchable in English or Chinese:
+
+![Image tags](docs/screenshots/image-tags.png)
+
+**Your whole library, tagged and searchable in immich:**
+
+![Main view](docs/screenshots/main-view.png)
+
 ## Features
 
 - **Local & fast** — camie-tagger-v2 runs on your own GPU (or CPU); no images leave your machine for the main tagging path.
