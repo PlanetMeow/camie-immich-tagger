@@ -67,7 +67,7 @@ flowchart TD
 - **immich-native** — writes `XMP-digiKam:TagsList` sidecars that immich reads directly; browse a tag tree and search in EN/中文.
 - **Non-destructive** — tags go to `.xmp` sidecars next to images (union-merge, preserves manual tags); your original files are untouched.
 - **Incremental** — a done-list makes daily runs process only genuinely new images (robust against mtime churn from batch operations).
-- **Tier 0 backfill** — SauceNAO reverse search (≥88% similarity) → canonical Danbooru tags, rate-limit-aware and resumable.
+- **Tier 0 backfill** — SauceNAO reverse search (≥88% similarity) → canonical Danbooru tags, rate-limit-aware and resumable. If Danbooru is unreachable (e.g. Cloudflare 403), it falls back to the tags SauceNAO already returns and retries Danbooru later without spending SauceNAO quota.
 - **Automation** — `update.bat` (manual one-click) and `daily.bat` (unattended Task Scheduler) chain the whole flow.
 
 **中文**
@@ -77,7 +77,7 @@ flowchart TD
 - **immich 原生** —— 写 `XMP-digiKam:TagsList` sidecar,immich 直接读取;可按标签树浏览、中英文搜索。
 - **非破坏性** —— 标签写进图片旁的 `.xmp` sidecar(并集合并,保留手动标签),不动原图。
 - **增量** —— 已处理清单让每日运行只处理真正的新图(不受批量操作刷新 mtime 的影响)。
-- **Tier 0 补漏** —— SauceNAO 反向搜索(相似度 ≥88%)→ 规范 Danbooru 标签,限流感知、断点续跑。
+- **Tier 0 补漏** —— SauceNAO 反向搜索(相似度 ≥88%)→ 规范 Danbooru 标签,限流感知、断点续跑。Danbooru 访问不了(如 Cloudflare 403)时,先用 SauceNAO 结果自带的标签兜底,之后再重试 Danbooru,不重复消耗 SauceNAO 配额。
 - **自动化** —— `update.bat`(手动一键)和 `daily.bat`(无人值守计划任务)串起整个流程。
 
 ---
@@ -189,6 +189,7 @@ Unattended: point Windows Task Scheduler at `daily.bat` (enable *Start when avai
 | `tag_translations.py` | EN→中文 general-tag dictionary / general 标签的英中翻译表 |
 | `enqueue_tier0.py` | Queue "copyright but no character" images for Tier 0 / 把有作品无角色的图排进 Tier 0 队列 |
 | `tier0_saucenao.py` | SauceNAO→Danbooru backfill, rate-limited, resumable / SauceNAO→Danbooru 补漏,限流,断点续跑 |
+| `fix_tier0_progress.py` | Re-queue legacy "hit but Danbooru failed" entries (dry-run + `--confirm`) / 把旧版遗留的「命中但回查失败」记录重新排队(dry-run + `--confirm`) |
 | `char_stats.py` | Character-coverage stats; builds the no-character list / 角色覆盖率统计;生成无角色清单 |
 | `probe_danbooru.py` | Sample MD5 hit-rate probe against Danbooru / 对 Danbooru 的 MD5 命中率抽样探针 |
 | `probe_camie.py` | Standalone model smoke test / 独立的模型冒烟测试 |
@@ -205,6 +206,7 @@ Unattended: point Windows Task Scheduler at `daily.bat` (enable *Start when avai
 - **New sidecars** need immich's *Sidecar → Discover* job, not just metadata extraction.
 - **Chinese on Windows:** all ExifTool calls go through a UTF-8 argfile; `.bat` files use ASCII-only comments to avoid GBK mojibake.
 - **SauceNAO free tier** is ~100 searches/day; Tier 0 is deliberately a slow background job, not instant.
+- **Danbooru 403** is usually a Cloudflare challenge (`cf-mitigated: challenge`) aimed at your exit IP (common behind proxies/VPNs). Changing the User-Agent or HTTP library does not help; Tier 0 falls back to SauceNAO's own tag fields and keeps the Danbooru ID in `tier0_danbooru_pending.json` for later retries.
 - **Tag format:** slashes inside tags are replaced with `_` to avoid accidental hierarchy.
 
 **中文**
@@ -213,6 +215,7 @@ Unattended: point Windows Task Scheduler at `daily.bat` (enable *Start when avai
 - **新 sidecar** 需要 immich 的「边车 → 发现(Discover)」任务,不只是提取元数据。
 - **Windows 中文**:所有 ExifTool 调用走 UTF-8 argfile;`.bat` 用纯 ASCII 注释,避免 GBK 乱码。
 - **SauceNAO 免费层** 约 100 次/天;Tier 0 刻意设计成慢速后台任务,不是即时。
+- **Danbooru 403** 通常是 Cloudflare 人机验证(`cf-mitigated: challenge`),针对出口 IP(走代理/VPN 常见)。换 User-Agent 或换 HTTP 库都没用;Tier 0 会用 SauceNAO 自带的标签字段兜底,并把 Danbooru ID 存进 `tier0_danbooru_pending.json` 以后重试。
 - **标签格式**:标签内的 `/` 会被替换成 `_`,避免误建层级。
 
 ---

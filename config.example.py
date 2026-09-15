@@ -33,6 +33,7 @@ ERROR_LOG      = os.path.join(WORK_DIR, "camie_errors.txt")
 DONE_LIST      = os.path.join(WORK_DIR, "camie_done.txt")
 NO_CHAR_LIST   = os.path.join(WORK_DIR, "no_character_images.txt")
 TIER0_PROGRESS = os.path.join(WORK_DIR, "tier0_progress.json")
+TIER0_PENDING  = os.path.join(WORK_DIR, "tier0_danbooru_pending.json")  # SauceNAO hits awaiting Danbooru retry
 DEL_LIST       = os.path.join(WORK_DIR, "tags_to_delete.txt")
 KEEP_LIST      = os.path.join(WORK_DIR, "tags_keep.txt")
 ORPHAN_LIST    = os.path.join(WORK_DIR, "orphan_sidecars.txt")

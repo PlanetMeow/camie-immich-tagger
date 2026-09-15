@@ -12,6 +12,8 @@ camie_done.txt
 camie_errors.txt
 no_character_images.txt
 tier0_progress.json
+tier0_progress.json.bak
+tier0_danbooru_pending.json
 tier0_daily.log
 daily.log
 tags_to_delete.txt
