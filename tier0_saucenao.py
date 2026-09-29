@@ -49,6 +49,8 @@ DANBOORU_UA = "ImageTaggerTier0/1.0 (personal hobby)"
 DANBOORU_TIMEOUT = 15
 DANBOORU_FAIL_LIMIT = 5     # 连续失败几次后本次运行不再请求 Danbooru
 DANBOORU_RETRY_INTERVAL = 1  # 重试待回查清单时每次间隔秒
+SAUCENAO_RETRIES = 3        # SauceNAO 请求失败(代理掉线等)先重试几次再停
+SAUCENAO_RETRY_WAIT = 60    # 重试间隔秒
 # ==============================
 
 
@@ -84,6 +86,27 @@ def saucenao_search(img_path):
     resp.raise_for_status()
     j = resp.json()
     return j.get("header", {}), j.get("results", []) or []
+
+
+def redact(msg):
+    """报错信息里带完整请求 URL(含 api_key),打印/写日志前打码"""
+    msg = str(msg)
+    if SAUCENAO_API_KEY:
+        msg = msg.replace(SAUCENAO_API_KEY, "***")
+    return re.sub(r"api_key=[^&\s'\"]+", "api_key=***", msg)
+
+
+def saucenao_search_retry(img_path):
+    """失败先重试 SAUCENAO_RETRIES 次(间隔 SAUCENAO_RETRY_WAIT 秒),仍失败再抛出"""
+    for attempt in range(SAUCENAO_RETRIES + 1):
+        try:
+            return saucenao_search(img_path)
+        except Exception as e:
+            if attempt == SAUCENAO_RETRIES:
+                raise
+            print(f"  SauceNAO 请求失败(第 {attempt + 1} 次),{SAUCENAO_RETRY_WAIT}s 后重试: {redact(e)}",
+                  flush=True)
+            time.sleep(SAUCENAO_RETRY_WAIT)
 
 
 def best_danbooru_match(results):
@@ -239,9 +262,9 @@ def main():
             print(f"\n已达今日上限 {DAILY_CAP},停止。明天再跑续跑。")
             break
         try:
-            header, results = saucenao_search(img)
+            header, results = saucenao_search_retry(img)
         except Exception as e:
-            print(f"\nSauceNAO 请求失败: {e}\n停止保住进度,稍后再续。")
+            print(f"\nSauceNAO 请求失败(已重试 {SAUCENAO_RETRIES} 次): {redact(e)}\n停止保住进度,稍后再续。")
             break
 
         status = header.get("status", 0)
