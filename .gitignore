@@ -16,6 +16,8 @@ tier0_progress.json.bak
 tier0_danbooru_pending.json
 tier0_daily.log
 daily.log
+daily.log.old
+daily_last_run.txt
 tags_to_delete.txt
 tags_keep.txt
 orphan_sidecars.txt
