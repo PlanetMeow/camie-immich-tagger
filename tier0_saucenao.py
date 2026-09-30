@@ -31,8 +31,10 @@ import os
 import re
 import json
 import time
+import io
 
 import requests
+from PIL import Image
 from sidecar_writer import write_sidecar_taglist
 
 # ============ 配置 ============
@@ -51,6 +53,8 @@ DANBOORU_FAIL_LIMIT = 5     # 连续失败几次后本次运行不再请求 Danb
 DANBOORU_RETRY_INTERVAL = 1  # 重试待回查清单时每次间隔秒
 SAUCENAO_RETRIES = 3        # SauceNAO 请求失败(代理掉线等)先重试几次再停
 SAUCENAO_RETRY_WAIT = 60    # 重试间隔秒
+UPLOAD_MAX_SIDE = 700       # 上传前缩到长边 700px:代理传 >300KB 的文件经常断开,SauceNAO 本身也只看缩略图
+UPLOAD_JPEG_QUALITY = 85
 # ==============================
 
 
@@ -78,11 +82,34 @@ def get_danbooru_id(data):
     return None
 
 
+Image.MAX_IMAGE_PIXELS = None  # 大图只是缩小上传,不需要解压炸弹保护
+
+
+def upload_bytes(img_path):
+    """返回 (文件名, 字节):缩成长边 UPLOAD_MAX_SIDE 的 JPEG(透明铺白底);打不开就原样上传"""
+    try:
+        with Image.open(img_path) as im:
+            im.thumbnail((UPLOAD_MAX_SIDE, UPLOAD_MAX_SIDE))
+            if im.mode in ("RGBA", "LA", "P"):
+                im = im.convert("RGBA")
+                bg = Image.new("RGB", im.size, (255, 255, 255))
+                bg.paste(im, mask=im.getchannel("A"))
+                im = bg
+            elif im.mode != "RGB":
+                im = im.convert("RGB")
+            buf = io.BytesIO()
+            im.save(buf, "JPEG", quality=UPLOAD_JPEG_QUALITY)
+            return "upload.jpg", buf.getvalue()
+    except Exception:
+        with open(img_path, "rb") as fh:
+            return os.path.basename(img_path), fh.read()
+
+
 def saucenao_search(img_path):
     """裸调 SauceNAO,返回 (header_dict, results_list)。抛异常交给上层处理。"""
     params = {"api_key": SAUCENAO_API_KEY, "output_type": "2", "numres": "8", "db": "999"}
-    with open(img_path, "rb") as fh:
-        resp = requests.post(SAUCENAO_URL, params=params, files={"file": fh}, timeout=40)
+    name, data = upload_bytes(img_path)
+    resp = requests.post(SAUCENAO_URL, params=params, files={"file": (name, data)}, timeout=40)
     resp.raise_for_status()
     j = resp.json()
     return j.get("header", {}), j.get("results", []) or []
