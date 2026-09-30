@@ -167,7 +167,7 @@ Tier 0 reverse search (rate-limited, run daily / scheduled):
 python tier0_saucenao.py            # consumes the queue, ~100/day on free SauceNAO
 ```
 
-Unattended: register `daily.bat` in Windows Task Scheduler with two triggers — *at logon* (5-min delay) and *daily at 00:05* — and enable *Start when available*. `daily.bat` runs at most once per day (`daily_last_run.txt`; `daily.bat force` bypasses it), first waits up to 20 min for immich and network access via `wait_deps.py` (the day is only marked done once they are ready, so a slow boot is retried on the next trigger), and appends all output to `daily.log`. Example (adjust the path):
+Unattended: register `daily.bat` in Windows Task Scheduler with two triggers — *at logon* (5-min delay) and *daily at 00:05* — and enable *Start when available*. `daily.bat` runs at most once per day (`daily_last_run.txt`; `daily.bat force` bypasses it), first waits up to 20 min for immich and network access via `wait_deps.py`, shows all output in its console window while also appending it to `daily.log` (`tee_run.py`), and marks the day done only after every step finishes — so a slow boot, a closed window or a shutdown mid-run is simply retried on the next trigger. Example (adjust the path):
 
 ```powershell
 $a  = New-ScheduledTaskAction -Execute "D:\Software\ImageTagger\daily.bat"
@@ -182,7 +182,7 @@ Register-ScheduledTask -TaskName ImageTagger_Daily -Action $a -Trigger $t1,$t2 -
 - **日常(只处理新图,秒级)**:`python camie_pipeline.py recent`(打标 + 触发 immich)后跑 `python enqueue_tier0.py`(把新的无角色图排进 Tier 0 队列);或直接双击 `update.bat`。
 - **全量重打(换模型 / 首次,较慢)**:`python camie_pipeline.py all`,扫描全库并重建已处理清单。
 - **Tier 0 反向搜索(限流,每日 / 计划任务运行)**:`python tier0_saucenao.py`,消费队列,免费 SauceNAO 约 100/天。
-- **无人值守**:在 Windows 计划任务里注册 `daily.bat`,设两个触发器:*登录时*(延迟 5 分钟)+ *每天 00:05*,并开启 *Start when available*(错过后尽快补跑)。`daily.bat` 每天最多成功跑一次(`daily_last_run.txt`;`daily.bat force` 可强制重跑);开跑前由 `wait_deps.py` 最多等 20 分钟 immich 和网络就绪,就绪后才记为当天已跑,开机慢导致的失败会在下次触发时重试;全部输出追加到 `daily.log`。注册命令见上方英文部分示例。
+- **无人值守**:在 Windows 计划任务里注册 `daily.bat`,设两个触发器:*登录时*(延迟 5 分钟)+ *每天 00:05*,并开启 *Start when available*(错过后尽快补跑)。`daily.bat` 每天最多成功跑一次(`daily_last_run.txt`;`daily.bat force` 可强制重跑);开跑前由 `wait_deps.py` 最多等 20 分钟 immich 和网络就绪;输出经 `tee_run.py` 同时显示在 cmd 窗口并追加到 `daily.log`;所有步骤跑完才记为当天已跑,开机慢、中途关窗口或关机都会在下次触发时重试。注册命令见上方英文部分示例。
 
 ---
 
@@ -199,6 +199,7 @@ Register-ScheduledTask -TaskName ImageTagger_Daily -Action $a -Trigger $t1,$t2 -
 | `tier0_saucenao.py` | SauceNAO→Danbooru backfill, rate-limited, resumable / SauceNAO→Danbooru 补漏,限流,断点续跑 |
 | `fix_tier0_progress.py` | Re-queue legacy "hit but Danbooru failed" entries (dry-run + `--confirm`) / 把旧版遗留的「命中但回查失败」记录重新排队(dry-run + `--confirm`) |
 | `wait_deps.py` | Wait for immich + network before the daily run (used by `daily.bat`) / daily 开跑前等 immich 和网络就绪(由 `daily.bat` 调用) |
+| `tee_run.py` | Run a command, stream output to the console and append it to a log (used by `daily.bat`) / 运行命令,输出同时显示在窗口并追加到日志(由 `daily.bat` 调用) |
 | `char_stats.py` | Character-coverage stats; builds the no-character list / 角色覆盖率统计;生成无角色清单 |
 | `probe_danbooru.py` | Sample MD5 hit-rate probe against Danbooru / 对 Danbooru 的 MD5 命中率抽样探针 |
 | `probe_camie.py` | Standalone model smoke test / 独立的模型冒烟测试 |
