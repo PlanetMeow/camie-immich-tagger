@@ -91,6 +91,8 @@ def tags_for(chars, threshold, ips):
             continue
         out.append("character/" + c.replace("/", "_"))
         out += ["copyright/" + ip.replace("/", "_") for ip in ips.get(c, [])]
+    from zh_names import name_tags
+    out += name_tags(out)
     return list(dict.fromkeys(out))
 
 

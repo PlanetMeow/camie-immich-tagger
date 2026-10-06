@@ -69,6 +69,7 @@ flowchart TD
 - **Incremental** — a done-list makes daily runs process only genuinely new images (robust against mtime churn from batch operations).
 - **Tier 0 backfill** — SauceNAO reverse search (≥88% similarity) → canonical Danbooru tags, rate-limit-aware and resumable. If Danbooru is unreachable (e.g. Cloudflare 403), it falls back to the tags SauceNAO already returns and retries Danbooru later without spending SauceNAO quota.
 - **Chinese concept tags** — 240+ concepts under `zh/<category>/<concept>` (e.g. `zh/服饰/黑丝`, `zh/视角/仰视`, `zh/表情/哭`), each grouping many Danbooru tags, so you can browse by clothing / camera angle / expression / pose in immich's tag tree. Backfill existing sidecars without re-running the model (`backfill_concepts.py`).
+- **Chinese character / series names** — `zh/角色/<name>` and `zh/作品/<name>` (e.g. `zh/角色/流萤`, `zh/作品/原神`) for the most common ~300 characters and ~180 series (`zh_names.py`), so you can find them by typing Chinese in immich's tag filter.
 - **PixAI character supplement (optional)** — [PixAI tagger v0.9](https://huggingface.co/pixai-labs/pixai-tagger-v0.9) (Danbooru Jan-2025 data) adds characters camie misses or doesn't know (2024-H2+ characters), plus their copyright from the model's tag table.
 - **Automation** — `update.bat` (manual one-click) and `daily.bat` (unattended Task Scheduler) chain the whole flow.
 
@@ -81,6 +82,7 @@ flowchart TD
 - **增量** —— 已处理清单让每日运行只处理真正的新图(不受批量操作刷新 mtime 的影响)。
 - **Tier 0 补漏** —— SauceNAO 反向搜索(相似度 ≥88%)→ 规范 Danbooru 标签,限流感知、断点续跑。Danbooru 访问不了(如 Cloudflare 403)时,先用 SauceNAO 结果自带的标签兜底,之后再重试 Danbooru,不重复消耗 SauceNAO 配额。
 - **中文概念标签** —— 240+ 个概念挂在 `zh/<大类>/<概念>` 下(如 `zh/服饰/黑丝`、`zh/视角/仰视`、`zh/表情/哭`),每个概念归并多个 Danbooru 标签,可在 immich 标签树里按服饰 / 视角 / 表情 / 姿势浏览。已有 sidecar 可直接补写,不用重跑模型(`backfill_concepts.py`)。
+- **角色 / 作品中文名** —— 最常见的约 300 个角色、180 个作品写成 `zh/角色/<名>`、`zh/作品/<名>`(如 `zh/角色/流萤`、`zh/作品/原神`,见 `zh_names.py`),immich 标签筛选里直接输中文即可。
 - **PixAI 补角色(可选)** —— 用 [PixAI tagger v0.9](https://huggingface.co/pixai-labs/pixai-tagger-v0.9)(Danbooru 2025-01 数据)补 camie 漏认或不认识的角色(2024 下半年后的新角色),作品按模型标签表反查一并写入。
 - **自动化** —— `update.bat`(手动一键)和 `daily.bat`(无人值守计划任务)串起整个流程。
 
@@ -220,6 +222,7 @@ Register-ScheduledTask -TaskName ImageTagger_Daily -Action $a -Trigger $t1,$t2 -
 | `wait_deps.py` | Wait for immich + network before the daily run (used by `daily.bat`) / daily 开跑前等 immich 和网络就绪(由 `daily.bat` 调用) |
 | `tee_run.py` | Run a command, stream output to the console and append it to a log (used by `daily.bat`) / 运行命令,输出同时显示在窗口并追加到日志(由 `daily.bat` 调用) |
 | `concept_tags.py` | Concept map: Danbooru tags → `zh/<category>/<concept>` / 概念表:Danbooru 标签 → `zh/<大类>/<概念>` |
+| `zh_names.py` | Character / series → Chinese name map (`zh/角色/`, `zh/作品/`) / 角色、作品中文名表 |
 | `backfill_concepts.py` | Add concept tags to existing sidecars (dry-run + `--confirm`, `--undo`) / 给已有 sidecar 补写概念标签(dry-run + `--confirm`,可 `--undo`) |
 | `pixai_tagger.py` | PixAI tagger v0.9 ONNX inference core / PixAI tagger v0.9 ONNX 推理核心 |
 | `pixai_characters.py` | Supplement characters with PixAI (threshold 0.9, cached, `--new-only`, `--undo`) / 用 PixAI 补角色(门槛 0.9,结果缓存,`--new-only`,可 `--undo`) |

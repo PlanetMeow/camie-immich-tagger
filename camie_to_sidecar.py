@@ -15,6 +15,7 @@ from camie_tagger import CamieTagger          # block 3 复用 step3 的推理�
 from sidecar_writer import write_sidecar_taglist, read_sidecar_taglist
 from tag_translations import get_translation_map
 from concept_tags import concept_tags
+from zh_names import name_tags
 
 TRANS = get_translation_map()
 
@@ -37,6 +38,8 @@ def build_taglist(pred, trans=TRANS, cats=CATS_TO_WRITE):
                     out.append(f"zh/{zh}")
     # 中文概念标签 zh/<大类>/<概念>(多个 general 归一个概念,见 concept_tags.py)
     out += concept_tags([t for t, _ in pred.get("general", [])])
+    # 角色 / 作品中文名 zh/角色/<名>、zh/作品/<名>(见 zh_names.py)
+    out += name_tags(out)
     seen, final = set(), []
     for t in out:
         if t not in seen:

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-给已打标的图补写中文概念标签 zh/<大类>/<概念>(见 concept_tags.py),不重跑模型:
-读每个 sidecar 里已有的 general/ 标签 -> concept_tags() -> 只追加缺的。
+给已打标的图补写中文概念标签 zh/<大类>/<概念>(见 concept_tags.py)和角色/作品中文名
+zh/角色/<名>、zh/作品/<名>(见 zh_names.py),不重跑模型:
+读每个 sidecar 里已有的 general/ character/ copyright/ 标签 -> 只追加缺的。
 
 - 只增不减:不动已有标签 / 手动标签 / Rating 等字段;用 "-=x -+=x" 写法保证不重复
 - 批量:一次 exiftool 调用处理 BATCH 个文件(argfile + -execute),比逐个调用快很多
@@ -24,12 +25,13 @@ import subprocess
 import collections
 
 from concept_tags import concept_tags, CONCEPTS
+from zh_names import name_tags
 
 from config import EXIFTOOL, DONE_LIST
 WORKDIR = os.path.dirname(EXIFTOOL)          # argfile 放纯英文路径下
 READ_BATCH = 500
 WRITE_BATCH = 200
-CATS = sorted({p.split("/", 1)[0] for p in CONCEPTS})
+CATS = sorted({p.split("/", 1)[0] for p in CONCEPTS} | {"角色", "作品"})
 
 
 def _argfile_run(lines, timeout=1800):
@@ -72,7 +74,8 @@ def plan(taglists, undo):
                 todo[s] = rm
         else:
             have = set(tl)
-            add = [t for t in concept_tags([t[8:] for t in tl if t.startswith("general/")]) if t not in have]
+            want = concept_tags([t[8:] for t in tl if t.startswith("general/")]) + name_tags(tl)
+            add = [t for t in want if t not in have]
             if add:
                 todo[s] = add
     return todo
