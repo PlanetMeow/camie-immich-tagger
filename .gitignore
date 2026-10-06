@@ -14,6 +14,8 @@ no_character_images.txt
 tier0_progress.json
 tier0_progress.json.bak
 tier0_danbooru_pending.json
+pixai_cache.json
+pixai_added.json
 tier0_daily.log
 daily.log
 daily.log.old

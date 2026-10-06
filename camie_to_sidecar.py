@@ -14,6 +14,7 @@ import sys
 from camie_tagger import CamieTagger          # block 3 复用 step3 的推理核心
 from sidecar_writer import write_sidecar_taglist, read_sidecar_taglist
 from tag_translations import get_translation_map
+from concept_tags import concept_tags
 
 TRANS = get_translation_map()
 
@@ -34,6 +35,8 @@ def build_taglist(pred, trans=TRANS, cats=CATS_TO_WRITE):
             if cat == "general" and tag in trans:        # 仅 general 翻译
                 for zh in trans[tag]:
                     out.append(f"zh/{zh}")
+    # 中文概念标签 zh/<大类>/<概念>(多个 general 归一个概念,见 concept_tags.py)
+    out += concept_tags([t for t, _ in pred.get("general", [])])
     seen, final = set(), []
     for t in out:
         if t not in seen:

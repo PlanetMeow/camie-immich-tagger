@@ -68,6 +68,8 @@ flowchart TD
 - **Non-destructive** — tags go to `.xmp` sidecars next to images (union-merge, preserves manual tags); your original files are untouched.
 - **Incremental** — a done-list makes daily runs process only genuinely new images (robust against mtime churn from batch operations).
 - **Tier 0 backfill** — SauceNAO reverse search (≥88% similarity) → canonical Danbooru tags, rate-limit-aware and resumable. If Danbooru is unreachable (e.g. Cloudflare 403), it falls back to the tags SauceNAO already returns and retries Danbooru later without spending SauceNAO quota.
+- **Chinese concept tags** — 240+ concepts under `zh/<category>/<concept>` (e.g. `zh/服饰/黑丝`, `zh/视角/仰视`, `zh/表情/哭`), each grouping many Danbooru tags, so you can browse by clothing / camera angle / expression / pose in immich's tag tree. Backfill existing sidecars without re-running the model (`backfill_concepts.py`).
+- **PixAI character supplement (optional)** — [PixAI tagger v0.9](https://huggingface.co/pixai-labs/pixai-tagger-v0.9) (Danbooru Jan-2025 data) adds characters camie misses or doesn't know (2024-H2+ characters), plus their copyright from the model's tag table.
 - **Automation** — `update.bat` (manual one-click) and `daily.bat` (unattended Task Scheduler) chain the whole flow.
 
 **中文**
@@ -78,6 +80,8 @@ flowchart TD
 - **非破坏性** —— 标签写进图片旁的 `.xmp` sidecar(并集合并,保留手动标签),不动原图。
 - **增量** —— 已处理清单让每日运行只处理真正的新图(不受批量操作刷新 mtime 的影响)。
 - **Tier 0 补漏** —— SauceNAO 反向搜索(相似度 ≥88%)→ 规范 Danbooru 标签,限流感知、断点续跑。Danbooru 访问不了(如 Cloudflare 403)时,先用 SauceNAO 结果自带的标签兜底,之后再重试 Danbooru,不重复消耗 SauceNAO 配额。
+- **中文概念标签** —— 240+ 个概念挂在 `zh/<大类>/<概念>` 下(如 `zh/服饰/黑丝`、`zh/视角/仰视`、`zh/表情/哭`),每个概念归并多个 Danbooru 标签,可在 immich 标签树里按服饰 / 视角 / 表情 / 姿势浏览。已有 sidecar 可直接补写,不用重跑模型(`backfill_concepts.py`)。
+- **PixAI 补角色(可选)** —— 用 [PixAI tagger v0.9](https://huggingface.co/pixai-labs/pixai-tagger-v0.9)(Danbooru 2025-01 数据)补 camie 漏认或不认识的角色(2024 下半年后的新角色),作品按模型标签表反查一并写入。
 - **自动化** —— `update.bat`(手动一键)和 `daily.bat`(无人值守计划任务)串起整个流程。
 
 ---
@@ -162,6 +166,19 @@ Full re-tag (model change / first run, slow):
 python camie_pipeline.py all        # scans whole library, rebuilds done-list
 ```
 
+Chinese concept tags for already-tagged images (new images get them automatically):
+```bash
+python backfill_concepts.py            # dry-run
+python backfill_concepts.py --confirm  # write (undo: --undo --confirm)
+```
+
+Optional PixAI character supplement — download `model.onnx` + `selected_tags.csv` from [deepghs/pixai-tagger-v0.9-onnx](https://huggingface.co/deepghs/pixai-tagger-v0.9-onnx) into `PIXAI_MODEL_DIR`, then:
+```bash
+python pixai_characters.py              # infer (cached) + dry-run
+python pixai_characters.py --confirm    # write characters (undo: --undo --confirm)
+```
+`daily.bat` runs it for new images only when the model is present.
+
 Tier 0 reverse search (rate-limited, run daily / scheduled):
 ```bash
 python tier0_saucenao.py            # consumes the queue, ~100/day on free SauceNAO
@@ -181,6 +198,8 @@ Register-ScheduledTask -TaskName ImageTagger_Daily -Action $a -Trigger $t1,$t2 -
 
 - **日常(只处理新图,秒级)**:`python camie_pipeline.py recent`(打标 + 触发 immich)后跑 `python enqueue_tier0.py`(把新的无角色图排进 Tier 0 队列);或直接双击 `update.bat`。
 - **全量重打(换模型 / 首次,较慢)**:`python camie_pipeline.py all`,扫描全库并重建已处理清单。
+- **中文概念标签**:已打标的图用 `python backfill_concepts.py` 先 dry-run,再加 `--confirm` 写入(`--undo --confirm` 可撤销);新图打标时自动带上。
+- **PixAI 补角色(可选)**:从 [deepghs/pixai-tagger-v0.9-onnx](https://huggingface.co/deepghs/pixai-tagger-v0.9-onnx) 下载 `model.onnx` 和 `selected_tags.csv` 放到 `PIXAI_MODEL_DIR`,运行 `python pixai_characters.py`(推理并缓存 + dry-run),确认后加 `--confirm`(`--undo --confirm` 可撤销)。模型存在时 `daily.bat` 会自动只处理新图。
 - **Tier 0 反向搜索(限流,每日 / 计划任务运行)**:`python tier0_saucenao.py`,消费队列,免费 SauceNAO 约 100/天。
 - **无人值守**:在 Windows 计划任务里注册 `daily.bat`,设两个触发器:*登录时*(延迟 5 分钟)+ *每天 00:05*,并开启 *Start when available*(错过后尽快补跑)。`daily.bat` 每天最多成功跑一次(`daily_last_run.txt`;`daily.bat force` 可强制重跑);开跑前由 `wait_deps.py` 最多等 20 分钟 immich 和网络就绪;输出经 `tee_run.py` 同时显示在 cmd 窗口并追加到 `daily.log`;所有步骤跑完才记为当天已跑,开机慢、中途关窗口或关机都会在下次触发时重试。注册命令见上方英文部分示例。
 
@@ -200,6 +219,10 @@ Register-ScheduledTask -TaskName ImageTagger_Daily -Action $a -Trigger $t1,$t2 -
 | `fix_tier0_progress.py` | Re-queue legacy "hit but Danbooru failed" entries (dry-run + `--confirm`) / 把旧版遗留的「命中但回查失败」记录重新排队(dry-run + `--confirm`) |
 | `wait_deps.py` | Wait for immich + network before the daily run (used by `daily.bat`) / daily 开跑前等 immich 和网络就绪(由 `daily.bat` 调用) |
 | `tee_run.py` | Run a command, stream output to the console and append it to a log (used by `daily.bat`) / 运行命令,输出同时显示在窗口并追加到日志(由 `daily.bat` 调用) |
+| `concept_tags.py` | Concept map: Danbooru tags → `zh/<category>/<concept>` / 概念表:Danbooru 标签 → `zh/<大类>/<概念>` |
+| `backfill_concepts.py` | Add concept tags to existing sidecars (dry-run + `--confirm`, `--undo`) / 给已有 sidecar 补写概念标签(dry-run + `--confirm`,可 `--undo`) |
+| `pixai_tagger.py` | PixAI tagger v0.9 ONNX inference core / PixAI tagger v0.9 ONNX 推理核心 |
+| `pixai_characters.py` | Supplement characters with PixAI (threshold 0.9, cached, `--new-only`, `--undo`) / 用 PixAI 补角色(门槛 0.9,结果缓存,`--new-only`,可 `--undo`) |
 | `char_stats.py` | Character-coverage stats; builds the no-character list / 角色覆盖率统计;生成无角色清单 |
 | `probe_danbooru.py` | Sample MD5 hit-rate probe against Danbooru / 对 Danbooru 的 MD5 命中率抽样探针 |
 | `probe_camie.py` | Standalone model smoke test / 独立的模型冒烟测试 |
@@ -216,6 +239,7 @@ Register-ScheduledTask -TaskName ImageTagger_Daily -Action $a -Trigger $t1,$t2 -
 - **New sidecars** need immich's *Sidecar → Discover* job, not just metadata extraction.
 - **Chinese on Windows:** all ExifTool calls go through a UTF-8 argfile; `.bat` files use ASCII-only comments to avoid GBK mojibake.
 - **SauceNAO free tier** is ~100 searches/day; Tier 0 is deliberately a slow background job, not instant.
+- **Don't just lower camie's character threshold.** On the author's library, camie at 0.25 added 14 correct vs 45 wrong characters on known-answer images and assigned a character to 87% of no-character images; its low-confidence character and copyright guesses fail together. PixAI at 0.9 is far more reliable (spot checks ≥0.95 were correct; errors appear around 0.8).
 - **Danbooru 403** is usually a Cloudflare challenge (`cf-mitigated: challenge`) aimed at your exit IP (common behind proxies/VPNs). Changing the User-Agent or HTTP library does not help; Tier 0 falls back to SauceNAO's own tag fields and keeps the Danbooru ID in `tier0_danbooru_pending.json` for later retries.
 - **Tag format:** slashes inside tags are replaced with `_` to avoid accidental hierarchy.
 
@@ -225,6 +249,7 @@ Register-ScheduledTask -TaskName ImageTagger_Daily -Action $a -Trigger $t1,$t2 -
 - **新 sidecar** 需要 immich 的「边车 → 发现(Discover)」任务,不只是提取元数据。
 - **Windows 中文**:所有 ExifTool 调用走 UTF-8 argfile;`.bat` 用纯 ASCII 注释,避免 GBK 乱码。
 - **SauceNAO 免费层** 约 100 次/天;Tier 0 刻意设计成慢速后台任务,不是即时。
+- **别直接调低 camie 的角色门槛。** 作者库实测:门槛 0.25 时,在已知答案的图上多认对 14 个、认错 45 个,并给 87% 无角色的图硬安上角色;camie 低分时角色和作品是一起猜错的。PixAI 用 0.9 可靠得多(抽查 ≥0.95 都对,0.8 左右开始出错)。
 - **Danbooru 403** 通常是 Cloudflare 人机验证(`cf-mitigated: challenge`),针对出口 IP(走代理/VPN 常见)。换 User-Agent 或换 HTTP 库都没用;Tier 0 会用 SauceNAO 自带的标签字段兜底,并把 Danbooru ID 存进 `tier0_danbooru_pending.json` 以后重试。
 - **标签格式**:标签内的 `/` 会被替换成 `_`,避免误建层级。
 

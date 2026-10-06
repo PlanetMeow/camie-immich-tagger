@@ -15,6 +15,7 @@ REM  Output is shown in this window AND appended to daily.log (tee_run.py);
 REM  daily.log is rotated to daily.log.old when larger than 5 MB.
 REM  Steps:
 REM    1) camie tag recent new images + immich import
+REM    1b) PixAI character supplement for new images (optional model)
 REM    2) enqueue new no-character images into Tier 0 queue
 REM    3) Tier 0 SauceNAO consume queue (rate-limited)
 REM  No pause (unattended). ASCII-only comments (non-ASCII can be
@@ -56,6 +57,9 @@ exit /b 1
 :deps_ok
 call :log [1/3] camie tagging recent + immich import
 %TEE% "%PY%" camie_pipeline.py recent
+
+call :log [1b/3] PixAI character supplement, new images only (skipped if model missing)
+if exist "%ROOT%\models\pixai-tagger-v0.9\model.onnx" %TEE% "%PY%" -W ignore pixai_characters.py --new-only --confirm
 
 call :log [2/3] enqueue new no-character images
 %TEE% "%PY%" enqueue_tier0.py

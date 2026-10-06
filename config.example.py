@@ -10,6 +10,7 @@ import os
 WORK_DIR  = r"D:\Software\ImageTagger"                    # where scripts + exiftool.exe + model live
 EXIFTOOL  = os.path.join(WORK_DIR, "exiftool.exe")        # https://exiftool.org/  (Windows exe)
 MODEL_DIR = os.path.join(WORK_DIR, "models", "camie-tagger-v2")
+PIXAI_MODEL_DIR = os.path.join(WORK_DIR, "models", "pixai-tagger-v0.9")  # optional: character supplement (pixai_characters.py)
 
 # Image library roots to scan (typically your immich External Library dirs)
 SCAN_DIRS = [
