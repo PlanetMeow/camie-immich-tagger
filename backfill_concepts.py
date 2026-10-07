@@ -107,8 +107,14 @@ def apply(todo, undo):
 
 def trigger_immich():
     from camie_pipeline import _put_job
+    import urllib.error
     try:
         print(f"[immich] 边车 check(全部)-> {_put_job('sidecar', True)}  immich 会重新读取 sidecar 里的标签")
+    except urllib.error.HTTPError as e:
+        if e.code == 400:   # immich: "Job is already running"(daily 里 camie 那步刚触发过)
+            print("[immich] 边车任务已在运行中(不是错误),本次改动会被它或下次每日全量检查读到")
+        else:
+            print(f"[immich] 触发失败: {e}  请手动:任务 -> 边车元数据 -> 全部")
     except Exception as e:
         print(f"[immich] 触发失败: {e}  请手动:任务 -> 边车元数据 -> 全部")
 
