@@ -8,23 +8,21 @@ Tier 0:用 SauceNAO 给「有作品但 camie 没认出角色」的图补角色/�
       -> 回查失败(Cloudflare 403 / 超时)时,用 SauceNAO 结果自带的
          characters/material/creator 字段兜底写 sidecar,并把 danbooru_id 记进待重试清单
       -> 并集写进 sidecar。
-待重试:每次运行先重试待回查清单里的 Danbooru 回查(不花 SauceNAO 配额),
+待重试:每次运行先重试 tier0_danbooru_pending.json 里的 Danbooru 回查(不花 SauceNAO 配额),
         成功就把规范标签并集补进 sidecar。
 熔断:Danbooru 连续失败 5 次,本次运行不再请求 Danbooru(SauceNAO 照常跑,走兜底)。
 限流:每天最多 180 次,读 long_remaining 见底自动停;每次间隔 18 秒。
 断点续跑:已处理记进 tier0_progress.json。
-
-注意:Danbooru 的 403 通常是 Cloudflare challenge(响应头 cf-mitigated=challenge),
-      针对的是出口 IP(代理/VPN 常见),换 User-Agent 或换 HTTP 库都没用,所以才有上面的兜底。
 
 progress 取值:
   hit:<sim>%:<chars>                  Danbooru 规范标签已写入
   hit_sn:<sim>%:<chars>               SauceNAO 字段兜底已写入,Danbooru 待重试
   hit_pending_danbooru:<sim>%         SauceNAO 无标签字段,Danbooru 待重试(还没写 sidecar)
   miss                                未命中
-  hit_but_danbooru_err:...            旧版本遗留(没存 danbooru_id,用 fix_tier0_progress.py 重新排队)
+  skip_camera                         相机实拍照片（EXIF 有 Make/Model），不送 SauceNAO（2026-10-05 加）
+  hit_but_danbooru_err:...            旧版本遗留(没存 danbooru_id,只能用 fix_tier0_progress.py 重新排队)
 
-依赖:requests
+依赖:requests(venv_camie 应已有;没有则 pip install requests)
 用法:python tier0_saucenao.py
 """
 import os
@@ -55,6 +53,11 @@ SAUCENAO_RETRIES = 3        # SauceNAO 请求失败(代理掉线等)先重试几
 SAUCENAO_RETRY_WAIT = 60    # 重试间隔秒
 UPLOAD_MAX_SIDE = 700       # 上传前缩到长边 700px:代理传 >300KB 的文件经常断开,SauceNAO 本身也只看缩略图
 UPLOAD_JPEG_QUALITY = 85
+# 队列优先级(可选,在 config.py 里设 TIER0_PRIORITY):按路径正则,第一条匹配的生效;
+# 数字小的先搜,None = 不搜(不记进度,改规则即可恢复)。空列表 = 按队列原顺序。
+# 作者库实测:插画根目录命中 27%,画册扫描 / AI 生成图约 0%,值得排到最后或不搜。
+PRIORITY = getattr(config, "TIER0_PRIORITY", [])
+DEFAULT_PRIORITY = getattr(config, "TIER0_DEFAULT_PRIORITY", 2)
 # ==============================
 
 
@@ -264,6 +267,34 @@ def retry_pending(prog, pending, breaker):
     return fixed
 
 
+def is_camera_photo(path):
+    """EXIF 里有相机厂商/型号(Make=271, Model=272) 视为相机实拍。读取失败按非实拍处理（照常查）。"""
+    try:
+        with Image.open(path) as im:
+            exif = im.getexif()
+            return bool(exif.get(271) or exif.get(272))
+    except Exception:
+        return False
+
+
+def priority_of(path):
+    p = path.replace("\\", "/")
+    for pattern, tier in PRIORITY:
+        if re.match(pattern, p, re.I):
+            return tier
+    return DEFAULT_PRIORITY
+
+
+def prioritize(todo):
+    """按 PRIORITY 排序(同档保持原顺序);返回 (排好的列表, 各档数量, 不搜的数量)"""
+    tiers = [(priority_of(p), i, p) for i, p in enumerate(todo)]
+    keep = sorted((t, i, p) for t, i, p in tiers if t is not None)
+    counts = {}
+    for t, _, _ in keep:
+        counts[t] = counts.get(t, 0) + 1
+    return [p for _, _, p in keep], counts, sum(t is None for t, _, _ in tiers)
+
+
 def main():
     if not os.path.exists(CANDIDATES):
         raise SystemExit(f"找不到 {CANDIDATES},先跑 char_stats.py")
@@ -276,6 +307,19 @@ def main():
     retry_pending(prog, pending, breaker)
 
     todo = [p for p in imgs if p not in prog and os.path.exists(p)]
+    # 相机实拍的照片（手机备份里的生活照）SauceNAO 不可能命中，跳过以免浪费每日配额。
+    # App 里保存的图（小黑盒/QQ/B站等）没有相机信息，照常查。记进 progress，以后不再重复判断。
+    skipped = [p for p in todo if is_camera_photo(p)]
+    if skipped:
+        for p in skipped:
+            prog[p] = "skip_camera"
+        save_json(PROGRESS, prog)
+        todo = [p for p in todo if p not in set(skipped)]
+        print(f"跳过相机实拍照片 {len(skipped)} 张")
+    if PRIORITY:
+        todo, counts, low = prioritize(todo)
+        print("按优先级: " + "  ".join(f"第{t}档 {n}" for t, n in sorted(counts.items()))
+              + f"  不搜(画册/AI 图等) {low}")
     print(f"候选 {len(imgs)}  已处理 {len(prog)}  本次待处理 {len(todo)}")
     if not todo:
         print("全部处理完毕。")

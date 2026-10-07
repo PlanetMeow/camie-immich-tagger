@@ -243,6 +243,7 @@ Register-ScheduledTask -TaskName ImageTagger_Daily -Action $a -Trigger $t1,$t2 -
 - **Chinese on Windows:** all ExifTool calls go through a UTF-8 argfile; `.bat` files use ASCII-only comments to avoid GBK mojibake.
 - **SauceNAO free tier** is ~100 searches/day; Tier 0 is deliberately a slow background job, not instant.
 - **Don't just lower camie's character threshold.** On the author's library, camie at 0.25 added 14 correct vs 45 wrong characters on known-answer images and assigned a character to 87% of no-character images; its low-confidence character and copyright guesses fail together. PixAI at 0.9 is far more reliable (spot checks ≥0.95 were correct; errors appear around 0.8).
+- **Spend Tier 0 quota where it can hit.** Camera photos (EXIF Make/Model) are skipped automatically. On the author's library, plain illustrations hit 27% while artbook scans and AI-generated images hit ~0%; set `TIER0_PRIORITY` in `config.py` to search high-yield folders first and skip the rest.
 - **Danbooru 403** is usually a Cloudflare challenge (`cf-mitigated: challenge`) aimed at your exit IP (common behind proxies/VPNs). Changing the User-Agent or HTTP library does not help; Tier 0 falls back to SauceNAO's own tag fields and keeps the Danbooru ID in `tier0_danbooru_pending.json` for later retries.
 - **Tag format:** slashes inside tags are replaced with `_` to avoid accidental hierarchy.
 
@@ -253,6 +254,7 @@ Register-ScheduledTask -TaskName ImageTagger_Daily -Action $a -Trigger $t1,$t2 -
 - **Windows 中文**:所有 ExifTool 调用走 UTF-8 argfile;`.bat` 用纯 ASCII 注释,避免 GBK 乱码。
 - **SauceNAO 免费层** 约 100 次/天;Tier 0 刻意设计成慢速后台任务,不是即时。
 - **别直接调低 camie 的角色门槛。** 作者库实测:门槛 0.25 时,在已知答案的图上多认对 14 个、认错 45 个,并给 87% 无角色的图硬安上角色;camie 低分时角色和作品是一起猜错的。PixAI 用 0.9 可靠得多(抽查 ≥0.95 都对,0.8 左右开始出错)。
+- **Tier 0 配额花在能中的图上。** 相机实拍照片(EXIF 有 Make/Model)自动跳过。作者库实测:普通插画命中 27%,画册扫描、AI 生成图约 0%;可在 `config.py` 设 `TIER0_PRIORITY`,让高命中率的文件夹先搜、其余不搜。
 - **Danbooru 403** 通常是 Cloudflare 人机验证(`cf-mitigated: challenge`),针对出口 IP(走代理/VPN 常见)。换 User-Agent 或换 HTTP 库都没用;Tier 0 会用 SauceNAO 自带的标签字段兜底,并把 Danbooru ID 存进 `tier0_danbooru_pending.json` 以后重试。
 - **标签格式**:标签内的 `/` 会被替换成 `_`,避免误建层级。
 

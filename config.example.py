@@ -28,6 +28,13 @@ LIBRARY_IDS    = [                                        # immich External Libr
 
 # ---- SauceNAO (Tier 0 reverse search, optional) ----
 SAUCENAO_API_KEY = os.environ.get("SAUCENAO_API_KEY", "") # set env var, do NOT hardcode
+# Optional Tier 0 queue priority: (path regex, tier); first match wins, lower tier searched first,
+# None = never search (e.g. artbook scans / AI images rarely hit). Empty = original queue order.
+TIER0_PRIORITY = [
+    # (r"^E:/YourLibrary/Folder1/(Artbooks|AI)/", None),
+    # (r"^E:/YourLibrary/Folder1/", 1),
+    # (r"^E:/YourLibrary/Folder2/Screenshots/", 3),
+]
 
 # ---- State files (usually leave as-is) ----
 ERROR_LOG      = os.path.join(WORK_DIR, "camie_errors.txt")
